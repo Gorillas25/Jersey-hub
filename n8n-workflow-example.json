@@ -1,0 +1,129 @@
+{
+  "name": "JerseyHub WhatsApp Integration",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "jerseyhub",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [250, 300],
+      "webhookId": "jerseyhub-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Recebe os dados do JerseyHub\nconst cliente = $input.item.json.body.cliente;\nconst usuario = $input.item.json.body.usuario;\nconst imagens = $input.item.json.body.imagens;\n\n// Prepara mensagem\nconst mensagem = `Olá! O revendedor ${usuario} selecionou estas camisas para você:\\n\\nConfira as imagens abaixo 👇`;\n\nreturn {\n  json: {\n    cliente,\n    mensagem,\n    imagens\n  }\n};"
+      },
+      "name": "Processar Dados",
+      "type": "n8n-nodes-base.function",
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{ $json.cliente }}",
+        "message": "={{ $json.mensagem }}"
+      },
+      "name": "Enviar Mensagem WhatsApp",
+      "type": "n8n-nodes-base.evolutionApi",
+      "position": [650, 250]
+    },
+    {
+      "parameters": {
+        "operation": "sendMedia",
+        "chatId": "={{ $json.cliente }}",
+        "mediaUrl": "={{ $json.imagens[0] }}",
+        "caption": "Camisa 1"
+      },
+      "name": "Enviar Imagem 1",
+      "type": "n8n-nodes-base.evolutionApi",
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "operation": "sendMedia",
+        "chatId": "={{ $json.cliente }}",
+        "mediaUrl": "={{ $json.imagens[1] }}",
+        "caption": "Camisa 2"
+      },
+      "name": "Enviar Imagem 2",
+      "type": "n8n-nodes-base.evolutionApi",
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, message: 'Enviado com sucesso' } }}"
+      },
+      "name": "Responder Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Processar Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Dados": {
+      "main": [
+        [
+          {
+            "node": "Enviar Mensagem WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Mensagem WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Enviar Imagem 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Imagem 1": {
+      "main": [
+        [
+          {
+            "node": "Enviar Imagem 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Imagem 2": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "1"
+}

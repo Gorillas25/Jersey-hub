@@ -1,0 +1,59 @@
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { LandingPage } from './components/LandingPage';
+import { AdminDashboard } from './components/AdminDashboard';
+import { UserCatalog } from './components/UserCatalog';
+import { Header } from './components/Header';
+import { SubscriptionRequired } from './components/SubscriptionRequired';
+import { SuccessPage } from './components/SuccessPage';
+
+function AppContent() {
+  const { user, profile, loading, isAdmin, hasActiveSubscription } = useAuth();
+
+  const params = new URLSearchParams(window.location.search);
+  const isSuccessPage = window.location.pathname === '/sucesso' || params.has('session_id');
+
+  if (isSuccessPage) {
+    return <SuccessPage />;
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
+          <p className="text-slate-600">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || !profile) {
+    return <LandingPage />;
+  }
+
+  if (!hasActiveSubscription && !isAdmin) {
+    return (
+      <>
+        <Header />
+        <SubscriptionRequired />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Header />
+      {isAdmin ? <AdminDashboard /> : <UserCatalog />}
+    </>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+}
+
+export default App;
