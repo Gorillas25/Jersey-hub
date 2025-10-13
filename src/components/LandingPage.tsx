@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Shirt, Smartphone, Lock, Zap, CreditCard, Check } from 'lucide-react';
+import { Shirt, Link as LinkIcon, Lock, Zap, CreditCard, Check } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const STRIPE_PRICE_MONTHLY = 'price_MONTHLY_ID';
@@ -191,7 +191,7 @@ export function LandingPage() {
                   <li className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-1" />
                     <span className="text-slate-700">
-                      Envio ilimitado para clientes no WhatsApp
+                      Geração ilimitada de links personalizados
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
@@ -236,7 +236,7 @@ export function LandingPage() {
                   <li className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-white flex-shrink-0 mt-1" />
                     <span className="text-white">
-                      Envio ilimitado para clientes no WhatsApp
+                      Geração ilimitada de links personalizados
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
@@ -299,8 +299,8 @@ export function LandingPage() {
             JerseyHub
           </h1>
           <p className="text-xl md:text-2xl text-slate-300 max-w-3xl mx-auto mb-8 leading-relaxed">
-            Catálogo privado de camisas de time para revendedores — envie direto para o cliente
-            no WhatsApp com um clique
+            Catálogo privado de camisas de time para revendedores — gere links personalizados e
+            compartilhe com seus clientes
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
@@ -339,11 +339,11 @@ export function LandingPage() {
 
           <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 hover:border-emerald-500 transition">
             <div className="bg-emerald-500 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
-              <Smartphone className="w-6 h-6 text-white" />
+              <LinkIcon className="w-6 h-6 text-white" />
             </div>
-            <h3 className="text-xl font-semibold text-white mb-2">Envio Direto</h3>
+            <h3 className="text-xl font-semibold text-white mb-2">Links Personalizados</h3>
             <p className="text-slate-400">
-              Selecione as camisas e envie para o cliente no WhatsApp
+              Gere links exclusivos com as camisas selecionadas para cada cliente
             </p>
           </div>
 
@@ -386,9 +386,9 @@ export function LandingPage() {
                 3
               </div>
               <div>
-                <h4 className="text-white font-semibold mb-1">Selecione e envie</h4>
+                <h4 className="text-white font-semibold mb-1">Selecione e compartilhe</h4>
                 <p className="text-slate-400">
-                  Escolha as camisas, digite o número do cliente e envie direto no WhatsApp
+                  Escolha as camisas, gere um link e compartilhe com seu cliente
                 </p>
               </div>
             </div>
