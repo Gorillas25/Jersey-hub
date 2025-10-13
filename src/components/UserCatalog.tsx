@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, Send, X, CheckCircle2 } from 'lucide-react';
+import { Search, Filter, Link as LinkIcon, X, CheckCircle2, Copy, Check } from 'lucide-react';
 import { supabase, Jersey } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
-const WEBHOOK_URL = 'https://your-n8n-instance.com/webhook/jerseyhub';
-
 export function UserCatalog() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [jerseys, setJerseys] = useState<Jersey[]>([]);
   const [filteredJerseys, setFilteredJerseys] = useState<Jersey[]>([]);
   const [selectedJerseys, setSelectedJerseys] = useState<Set<string>>(new Set());
@@ -14,9 +12,10 @@ export function UserCatalog() {
   const [filterTags, setFilterTags] = useState<string[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [showSendModal, setShowSendModal] = useState(false);
-  const [clientPhone, setClientPhone] = useState('');
-  const [sending, setSending] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [generatedLink, setGeneratedLink] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     loadJerseys();
@@ -78,64 +77,62 @@ export function UserCatalog() {
     );
   };
 
-  const handleSendToClient = async () => {
-    if (!clientPhone || selectedJerseys.size === 0) {
-      alert('Por favor, selecione camisas e digite o número do cliente');
+  const handleGenerateLink = async () => {
+    if (selectedJerseys.size === 0) {
+      alert('Por favor, selecione pelo menos uma camisa');
       return;
     }
 
-    setSending(true);
+    setGenerating(true);
 
     try {
-      const selectedJerseyData = jerseys.filter((j) => selectedJerseys.has(j.id));
-      const imageUrls = selectedJerseyData.map((j) => j.image_url);
+      const shortCode = await generateShortCode();
 
-      const payload = {
-        cliente: clientPhone,
-        usuario: user?.email || profile?.email,
-        imagens: imageUrls,
-      };
-
-      const response = await fetch(WEBHOOK_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const responseData = await response.json();
-
-      await supabase.from('webhook_logs').insert({
+      const { error } = await supabase.from('shared_links').insert({
+        short_code: shortCode,
         reseller_id: user?.id,
-        client_phone: clientPhone,
         jersey_ids: Array.from(selectedJerseys),
-        webhook_response: responseData,
-        status: response.ok ? 'success' : 'failed',
       });
 
-      if (response.ok) {
-        alert('Camisas enviadas com sucesso para o cliente!');
-        setSelectedJerseys(new Set());
-        setClientPhone('');
-        setShowSendModal(false);
-      } else {
-        alert('Erro ao enviar. Tente novamente.');
-      }
+      if (error) throw error;
+
+      const link = `${window.location.origin}/link/${shortCode}`;
+      setGeneratedLink(link);
+      setShowLinkModal(true);
     } catch (error) {
-      console.error('Error sending:', error);
-      alert('Erro ao enviar. Verifique sua conexão e tente novamente.');
-
-      await supabase.from('webhook_logs').insert({
-        reseller_id: user?.id,
-        client_phone: clientPhone,
-        jersey_ids: Array.from(selectedJerseys),
-        webhook_response: { error: String(error) },
-        status: 'failed',
-      });
+      console.error('Error generating link:', error);
+      alert('Erro ao gerar link. Tente novamente.');
     } finally {
-      setSending(false);
+      setGenerating(false);
     }
+  };
+
+  const generateShortCode = async () => {
+    const { data, error } = await supabase.rpc('generate_short_code');
+
+    if (error || !data) {
+      const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
+      let code = '';
+      for (let i = 0; i < 8; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return code;
+    }
+
+    return data;
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(generatedLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCloseLinkModal = () => {
+    setShowLinkModal(false);
+    setGeneratedLink('');
+    setSelectedJerseys(new Set());
+    setCopied(false);
   };
 
   return (
@@ -144,7 +141,7 @@ export function UserCatalog() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Catálogo de Camisas</h1>
           <p className="text-slate-600">
-            Selecione as camisas e envie para seus clientes no WhatsApp
+            Selecione as camisas e gere um link para compartilhar com seus clientes
           </p>
         </div>
 
@@ -175,11 +172,12 @@ export function UserCatalog() {
 
           {selectedJerseys.size > 0 && (
             <button
-              onClick={() => setShowSendModal(true)}
-              className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-lg font-semibold transition"
+              onClick={handleGenerateLink}
+              disabled={generating}
+              className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-lg font-semibold transition disabled:opacity-50"
             >
-              <Send className="w-5 h-5" />
-              Enviar para cliente ({selectedJerseys.size})
+              <LinkIcon className="w-5 h-5" />
+              {generating ? 'Gerando...' : `Gerar Link (${selectedJerseys.size})`}
             </button>
           )}
         </div>
@@ -297,13 +295,13 @@ export function UserCatalog() {
           </div>
         )}
 
-        {showSendModal && (
+        {showLinkModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <div className="bg-white rounded-xl max-w-lg w-full p-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold text-slate-900">Enviar para Cliente</h3>
+                <h3 className="text-2xl font-bold text-slate-900">Link Gerado!</h3>
                 <button
-                  onClick={() => setShowSendModal(false)}
+                  onClick={handleCloseLinkModal}
                   className="text-slate-400 hover:text-slate-600"
                 >
                   <X className="w-6 h-6" />
@@ -311,41 +309,56 @@ export function UserCatalog() {
               </div>
 
               <div className="mb-6">
-                <p className="text-slate-600 mb-4">
-                  Você selecionou <strong>{selectedJerseys.size}</strong> camisa
-                  {selectedJerseys.size > 1 ? 's' : ''}
-                </p>
+                <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-4 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                    <span className="text-emerald-900 font-semibold">
+                      Link criado com sucesso!
+                    </span>
+                  </div>
+                  <p className="text-emerald-800 text-sm">
+                    Você selecionou {selectedJerseys.size} camisa{selectedJerseys.size > 1 ? 's' : ''}
+                  </p>
+                </div>
+
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Número do WhatsApp do cliente
+                  Link para compartilhar
                 </label>
-                <input
-                  type="tel"
-                  value={clientPhone}
-                  onChange={(e) => setClientPhone(e.target.value)}
-                  placeholder="+55 11 91234-5678"
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={generatedLink}
+                    readOnly
+                    className="flex-1 px-4 py-3 border border-slate-300 rounded-lg bg-slate-50 text-slate-900 font-mono text-sm"
+                  />
+                  <button
+                    onClick={handleCopyLink}
+                    className="px-4 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition flex items-center gap-2"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-5 h-5" />
+                        Copiado!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-5 h-5" />
+                        Copiar
+                      </>
+                    )}
+                  </button>
+                </div>
                 <p className="text-xs text-slate-500 mt-2">
-                  Formato: +55 (DDD) número (ex: +55 11 91234-5678)
+                  Compartilhe este link com seu cliente. Ele poderá ver apenas as camisas selecionadas.
                 </p>
               </div>
 
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowSendModal(false)}
-                  disabled={sending}
-                  className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 rounded-lg transition disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleSendToClient}
-                  disabled={sending || !clientPhone}
-                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {sending ? 'Enviando...' : 'Enviar'}
-                </button>
-              </div>
+              <button
+                onClick={handleCloseLinkModal}
+                className="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 rounded-lg transition"
+              >
+                Fechar
+              </button>
             </div>
           </div>
         )}

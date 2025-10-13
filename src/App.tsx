@@ -5,12 +5,21 @@ import { UserCatalog } from './components/UserCatalog';
 import { Header } from './components/Header';
 import { SubscriptionRequired } from './components/SubscriptionRequired';
 import { SuccessPage } from './components/SuccessPage';
+import { SharedLinkView } from './components/SharedLinkView';
 
 function AppContent() {
   const { user, profile, loading, isAdmin, hasActiveSubscription } = useAuth();
 
+  const pathname = window.location.pathname;
   const params = new URLSearchParams(window.location.search);
-  const isSuccessPage = window.location.pathname === '/sucesso' || params.has('session_id');
+
+  const linkMatch = pathname.match(/^\/link\/([a-zA-Z0-9]+)$/);
+  if (linkMatch) {
+    const shortCode = linkMatch[1];
+    return <SharedLinkView shortCode={shortCode} />;
+  }
+
+  const isSuccessPage = pathname === '/sucesso' || params.has('session_id');
 
   if (isSuccessPage) {
     return <SuccessPage />;
