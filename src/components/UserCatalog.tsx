@@ -3,8 +3,86 @@ import { Search, Filter, Link as LinkIcon, X, CheckCircle2, Copy, Check } from '
 import { supabase, Jersey } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
-export function UserCatalog() {
+// --- NOVO COMPONENTE: MODAL DE TELEFONE --- //
+// Para deixar o código principal mais limpo, criei um componente separado para o modal
+const PhoneModal = ({ onClose, onSaveSuccess }: { onClose: () => void; onSaveSuccess: () => void; }) => {
   const { user } = useAuth();
+  const [phone, setPhone] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!phone.trim()) {
+      alert('Por favor, insira um número de telefone válido.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ phone: phone })
+        .eq('id', user!.id);
+
+      if (error) {
+        // Se o Supabase retornar um erro, nós o jogamos para o catch
+        throw error;
+      }
+      
+      // Essa linha só será alcançada se não houver erro
+      onSaveSuccess();
+
+    } catch (error: any) {
+      // --- DEBUGGING: ERRO DETALhado AO SALVAR TELEFONE --- //
+      console.log("==============================================");
+      console.error("ERRO COMPLETO AO SALVAR:", error);
+      console.error("MENSAGEM DO ERRO:", error.message);
+      console.error("DETALHES DO ERRO:", error.details);
+      console.error("DICA DO ERRO:", error.hint);
+      console.log("==============================================");
+      
+      alert('Não foi possível salvar seu telefone. Verifique o console (F12) para detalhes.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-xl max-w-lg w-full p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-2xl font-bold text-slate-900">Contato para Clientes</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-6 h-6" /></button>
+        </div>
+        <div className="mb-6">
+          <p className="text-slate-600 mb-4">
+            Para que seus clientes possam te contatar com 1 clique, salve seu número de WhatsApp. Você só precisa fazer isso uma vez.
+          </p>
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Seu número de WhatsApp (Ex: 5511999998888)
+          </label>
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="Insira seu número com DDD"
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+          />
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          {saving ? 'Salvando...' : 'Salvar e Gerar Link'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+
+// --- COMPONENTE PRINCIPAL (UserCatalog) --- //
+export function UserCatalog() {
+  const { user, profile, refreshProfile } = useAuth(); 
   const [jerseys, setJerseys] = useState<Jersey[]>([]);
   const [filteredJerseys, setFilteredJerseys] = useState<Jersey[]>([]);
   const [selectedJerseys, setSelectedJerseys] = useState<Set<string>>(new Set());
@@ -13,6 +91,7 @@ export function UserCatalog() {
   const [allTags, setAllTags] = useState<string[]>([]);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showPhoneModal, setShowPhoneModal] = useState(false); 
   const [generatedLink, setGeneratedLink] = useState('');
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -43,7 +122,6 @@ export function UserCatalog() {
 
   const applyFilters = () => {
     let filtered = jerseys;
-
     if (searchTerm) {
       filtered = filtered.filter(
         (jersey) =>
@@ -51,13 +129,11 @@ export function UserCatalog() {
           jersey.team_name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-
     if (filterTags.length > 0) {
       filtered = filtered.filter((jersey) =>
         filterTags.some((tag) => jersey.tags.includes(tag))
       );
     }
-
     setFilteredJerseys(filtered);
   };
 
@@ -83,6 +159,11 @@ export function UserCatalog() {
       return;
     }
 
+    if (profile && !profile.phone) {
+      setShowPhoneModal(true); 
+      return; 
+    }
+
     setGenerating(true);
 
     try {
@@ -90,7 +171,7 @@ export function UserCatalog() {
 
       const { error } = await supabase.from('shared_links').insert({
         short_code: shortCode,
-        reseller_id: user?.id,
+        user_id: user?.id,
         jersey_ids: Array.from(selectedJerseys),
       });
 
@@ -99,9 +180,10 @@ export function UserCatalog() {
       const link = `${window.location.origin}/link/${shortCode}`;
       setGeneratedLink(link);
       setShowLinkModal(true);
-    } catch (error) {
-      console.error('Error generating link:', error);
-      alert('Erro ao gerar link. Tente novamente.');
+    } catch (error: any) {
+      console.error("ERRO COMPLETO:", error);
+      console.error("MENSAGEM DO ERRO:", error.message);
+      alert('Erro ao gerar link. Verifique o console (F12) para detalhes.');
     } finally {
       setGenerating(false);
     }
@@ -109,7 +191,6 @@ export function UserCatalog() {
 
   const generateShortCode = async () => {
     const { data, error } = await supabase.rpc('generate_short_code');
-
     if (error || !data) {
       const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
       let code = '';
@@ -118,7 +199,6 @@ export function UserCatalog() {
       }
       return code;
     }
-
     return data;
   };
 
@@ -246,6 +326,17 @@ export function UserCatalog() {
             <p className="text-slate-500 text-lg">Nenhuma camisa encontrada</p>
           </div>
         )}
+        
+        {showPhoneModal && (
+          <PhoneModal 
+            onClose={() => setShowPhoneModal(false)}
+            onSaveSuccess={async () => {
+              await refreshProfile?.(); 
+              setShowPhoneModal(false);
+              handleGenerateLink();
+            }}
+          />
+        )}
 
         {showFilterModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -259,7 +350,6 @@ export function UserCatalog() {
                   <X className="w-6 h-6" />
                 </button>
               </div>
-
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {allTags.map((tag) => (
                   <label
@@ -276,7 +366,6 @@ export function UserCatalog() {
                   </label>
                 ))}
               </div>
-
               <div className="mt-6 flex gap-3">
                 <button
                   onClick={() => setFilterTags([])}
@@ -307,7 +396,6 @@ export function UserCatalog() {
                   <X className="w-6 h-6" />
                 </button>
               </div>
-
               <div className="mb-6">
                 <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-4 mb-4">
                   <div className="flex items-center gap-2 mb-2">
@@ -320,7 +408,6 @@ export function UserCatalog() {
                     Você selecionou {selectedJerseys.size} camisa{selectedJerseys.size > 1 ? 's' : ''}
                   </p>
                 </div>
-
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Link para compartilhar
                 </label>
@@ -352,7 +439,6 @@ export function UserCatalog() {
                   Compartilhe este link com seu cliente. Ele poderá ver apenas as camisas selecionadas.
                 </p>
               </div>
-
               <button
                 onClick={handleCloseLinkModal}
                 className="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 rounded-lg transition"
