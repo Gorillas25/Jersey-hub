@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Shirt, Link as LinkIcon, Lock, Zap, CreditCard, Check } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
-const STRIPE_PRICE_MONTHLY = 'price_MONTHLY_ID';
-const STRIPE_PRICE_QUARTERLY = 'price_QUARTERLY_ID';
+//#1: COLOQUE SEUS IDs REAIS DO STRIPE AQUI ---
+const STRIPE_PRICE_MONTHLY = 'price_1SHuLcFaQzrWkh95UFyri85i';
+const STRIPE_PRICE_QUARTERLY = 'price_1SHuMSFaQzrWkh95bdK2oZBA';
 
 export function LandingPage() {
   const [showLogin, setShowLogin] = useState(false);
@@ -39,36 +41,28 @@ export function LandingPage() {
 
   const handleCheckout = async (priceId: string) => {
     setCheckoutLoading(true);
-
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({ priceId }),
-        }
-      );
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { priceId: priceId },
+      });
 
-      const data = await response.json();
+      if (error) throw error;
 
       if (data.url) {
         window.location.href = data.url;
-      } else if (data.error) {
-        alert(`Erro ao criar checkout: ${data.error}`);
+      } else {
+        throw new Error(data.error || 'URL de checkout não recebida.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao criar checkout:', error);
-      alert('Erro ao processar pagamento. Tente novamente.');
+      alert(`Erro ao processar pagamento: ${error.message}`);
     } finally {
       setCheckoutLoading(false);
     }
   };
 
   if (showLogin) {
+    // --- CÓDIGO DO LOGIN COMPLETO ---
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8">
@@ -151,6 +145,7 @@ export function LandingPage() {
   }
 
   if (showPlans) {
+    // --- SEÇÃO DE PLANOS ATUALIZADA E COMPLETA ---
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <div className="container mx-auto px-4 py-16">
@@ -172,91 +167,63 @@ export function LandingPage() {
             </div>
 
             <div className="grid md:grid-cols-2 gap-8">
-              <div className="bg-white rounded-2xl p-8 shadow-2xl">
+              <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col">
                 <div className="mb-6">
+                  <span className="inline-block bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-semibold mb-3">
+                    Preço de Lançamento
+                  </span>
                   <h3 className="text-2xl font-bold text-slate-900 mb-2">Plano Mensal</h3>
                   <div className="flex items-baseline gap-2 mb-4">
-                    <span className="text-5xl font-bold text-slate-900">R$ 97</span>
+                    <span className="text-5xl font-bold text-slate-900">R$ 39,90</span>
                     <span className="text-slate-600">/mês</span>
                   </div>
+                  <p className="text-slate-500">De <span className="line-through">R$ 54,00</span> por mês</p>
                 </div>
 
                 <ul className="space-y-4 mb-8">
-                  <li className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-1" />
-                    <span className="text-slate-700">
-                      Acesso completo ao catálogo de camisas
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-1" />
-                    <span className="text-slate-700">
-                      Geração ilimitada de links personalizados
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-1" />
-                    <span className="text-slate-700">Atualizações constantes do catálogo</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-1" />
-                    <span className="text-slate-700">Suporte prioritário</span>
-                  </li>
+                    <li className="flex items-start gap-3"><Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-1" /><span>Acesso completo ao catálogo de camisas</span></li>
+                    <li className="flex items-start gap-3"><Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-1" /><span>Geração de catálogos personalizados</span></li>
+                    <li className="flex items-start gap-3"><Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-1" /><span>Atualizações constantes do catálogo</span></li>
+                    <li className="flex items-start gap-3"><Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-1" /><span>Suporte prioritário</span></li>
                 </ul>
 
                 <button
                   onClick={() => handleCheckout(STRIPE_PRICE_MONTHLY)}
                   disabled={checkoutLoading}
-                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-4 rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="mt-auto w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-4 rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   <CreditCard className="w-5 h-5" />
                   {checkoutLoading ? 'Carregando...' : 'Assinar Plano Mensal'}
                 </button>
               </div>
 
-              <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-8 shadow-2xl relative">
+              <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-8 shadow-2xl relative flex flex-col">
                 <div className="absolute top-4 right-4 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-sm font-semibold">
                   Mais Popular
                 </div>
-
                 <div className="mb-6">
+                  <span className="inline-block bg-emerald-800 text-white px-3 py-1 rounded-full text-sm font-semibold mb-3">
+                    Preço de Lançamento
+                  </span>
                   <h3 className="text-2xl font-bold text-white mb-2">Plano Trimestral</h3>
                   <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-5xl font-bold text-white">R$ 247</span>
+                    <span className="text-5xl font-bold text-white">R$ 179,90</span>
                     <span className="text-emerald-100">/3 meses</span>
                   </div>
-                  <p className="text-emerald-100 text-sm">Economize R$ 44</p>
                 </div>
 
                 <ul className="space-y-4 mb-8">
-                  <li className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-white flex-shrink-0 mt-1" />
-                    <span className="text-white">Acesso completo ao catálogo de camisas</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-white flex-shrink-0 mt-1" />
-                    <span className="text-white">
-                      Geração ilimitada de links personalizados
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-white flex-shrink-0 mt-1" />
-                    <span className="text-white">Atualizações constantes do catálogo</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-white flex-shrink-0 mt-1" />
-                    <span className="text-white">Suporte prioritário</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-white flex-shrink-0 mt-1" />
-                    <span className="text-white font-semibold">Desconto de 15% no total</span>
-                  </li>
+                    <li className="flex items-start gap-3"><Check className="w-5 h-5 text-white flex-shrink-0 mt-1" /><span>Acesso completo ao catálogo de camisas</span></li>
+                    <li className="flex items-start gap-3"><Check className="w-5 h-5 text-white flex-shrink-0 mt-1" /><span>Geração de catálogos personalizados</span></li>
+                    <li className="flex items-start gap-3"><Check className="w-5 h-5 text-white flex-shrink-0 mt-1" /><span>Atualizações constantes do catálogo</span></li>
+                    <li className="flex items-start gap-3"><Check className="w-5 h-5 text-white flex-shrink-0 mt-1" /><span>Suporte prioritário</span></li>
+                    <li className="flex items-start gap-3"><Check className="w-5 h-5 text-white flex-shrink-0 mt-1" /><span className="font-semibold">Desconto de 15% no total</span></li>
                 </ul>
-
+                
                 <button
                   onClick={() => handleCheckout(STRIPE_PRICE_QUARTERLY)}
                   disabled={checkoutLoading}
-                  className="w-full bg-white hover:bg-slate-50 text-emerald-600 font-semibold py-4 rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="mt-auto w-full bg-white hover:bg-slate-50 text-emerald-600 font-semibold py-4 rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   <CreditCard className="w-5 h-5" />
                   {checkoutLoading ? 'Carregando...' : 'Assinar Plano Trimestral'}
@@ -266,16 +233,11 @@ export function LandingPage() {
 
             <div className="mt-12 text-center">
               <p className="text-slate-300 mb-2">Pagamento seguro processado pelo Stripe</p>
-              <p className="text-slate-400 text-sm">
-                Cancele a qualquer momento. Sem taxas ocultas.
-              </p>
+              <p className="text-slate-400 text-sm">Cancele a qualquer momento. Sem taxas ocultas.</p>
               <p className="text-slate-300 mt-4">
                 Já tem conta?{' '}
                 <button
-                  onClick={() => {
-                    setShowPlans(false);
-                    setShowLogin(true);
-                  }}
+                  onClick={() => { setShowPlans(false); setShowLogin(true); }}
                   className="text-emerald-400 hover:text-emerald-300 font-medium"
                 >
                   Fazer login
@@ -288,6 +250,7 @@ export function LandingPage() {
     );
   }
 
+  // --- CÓDIGO DA LANDING PAGE PRINCIPAL COMPLETO ---
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="container mx-auto px-4 py-16">
