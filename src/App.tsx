@@ -3,7 +3,7 @@ import { LandingPage } from './components/LandingPage';
 import { AdminDashboard } from './components/AdminDashboard';
 import { UserCatalog } from './components/UserCatalog';
 import { Header } from './components/Header';
-import { SubscriptionRequired } from './components/SubscriptionRequired';
+import { PaymentPage } from './components/PaymentPage'; 
 import { SuccessPage } from './components/SuccessPage';
 import { SharedLinkView } from './components/SharedLinkView';
 
@@ -37,14 +37,14 @@ function AppContent() {
   }
 
   if (!user || !profile) {
-    return <LandingPage />;
-  }
+     if (pathname === '/planos') 
+      return <PaymentPage />;
+    }
 
   if (!hasActiveSubscription && !isAdmin) {
     return (
       <>
-        <Header />
-        <SubscriptionRequired />
+        <PaymentPage/>;
       </>
     );
   }
