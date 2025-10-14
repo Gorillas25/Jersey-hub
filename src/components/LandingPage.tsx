@@ -207,7 +207,7 @@ export function LandingPage() {
                   </span>
                   <h3 className="text-2xl font-bold text-white mb-2">Plano Trimestral</h3>
                   <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-5xl font-bold text-white">R$ 179,90</span>
+                    <span className="text-5xl font-bold text-white">R$ 145,90</span>
                     <span className="text-emerald-100">/3 meses</span>
                   </div>
                 </div>
