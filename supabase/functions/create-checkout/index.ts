@@ -3,31 +3,40 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import Stripe from "npm:stripe@14";
 
-// Inicializa o Stripe com a chave secreta que está nas "Secrets" do seu Supabase
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-  // A versão da API é importante, mantenha a que o Stripe recomenda ou uma recente
-  apiVersion: "2024-06-20", 
+  apiVersion: "2024-06-20",
 });
 
-// --- MELHORIA DE SEGURANÇA: Lista de origens permitidas ---
+// A nossa "Lista VIP" de endereços permitidos
 const allowedOrigins = [
-  'http://localhost:5173', // Para seu desenvolvimento local
-  'https://jersey-hub-eight.vercel.app' // Para seu site em produção
+  'http://localhost:5173',
+  'https://jersey-hub-eight.vercel.app', // O endereço da Vercel
+  'https://www.jerseyhub.com.br',       // Seu domínio com www
+  'https://jerseyhub.com.br'            // Seu domínio sem www
 ];
 
 Deno.serve(async (req: Request) => {
-  // Pega a origem da requisição para verificar se está na nossa lista
+  // --- A LÓGICA CORRETA E DINÂMICA ---
+  // 1. O porteiro pergunta: "De onde você vem?"
   const origin = req.headers.get("origin") || "";
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': allowedOrigins.includes(origin) ? origin : allowedOrigins[0],
+
+  // 2. O porteiro prepara uma resposta padrão e segura
+  let corsHeaders = {
+    'Access-Control-Allow-Origin': allowedOrigins[0], // Resposta padrão para evitar erros
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   };
 
-  // O manipulador de OPTIONS é essencial para o CORS funcionar
+  // 3. Se o convidado está na lista VIP, o porteiro grita o nome DELE!
+  if (allowedOrigins.includes(origin)) {
+    corsHeaders['Access-Control-Allow-Origin'] = origin;
+  }
+
+  // Resposta padrão para a "verificação" do navegador (método OPTIONS)
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // O resto da sua lógica continua exatamente igual...
   try {
     const { priceId, customerEmail } = await req.json();
 
@@ -42,7 +51,7 @@ Deno.serve(async (req: Request) => {
       mode: "subscription",
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}/catalogo?pagamento=sucesso`, // Usamos a origem da requisição
+      success_url: `${origin}/catalogo?pagamento=sucesso`,
       cancel_url: `${origin}/planos`,
       allow_promotion_codes: true,
     };
