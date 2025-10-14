@@ -4,17 +4,20 @@ import InputMask from 'react-input-mask';
 import { supabase, Jersey } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
+// --- COMPONENTE PhoneModal COM A OTIMIZAÇÃO DE FEEDBACK ---
 const PhoneModal = ({ onClose, onSaveSuccess }: { onClose: () => void; onSaveSuccess: () => void; }) => {
   const { user } = useAuth();
   const [phone, setPhone] = useState('');
+  // --- Passo 1: Adicionamos um estado de 'saving' ---
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    if (!phone.trim() || phone.includes('_')) { // Adiciona verificação se a máscara não foi preenchida
+    if (!phone.trim() || phone.includes('_')) {
       alert('Por favor, preencha o número de telefone completo.');
       return;
     }
-    setSaving(true);
+    // --- Passo 2: Ativamos o estado de 'saving' no início ---
+    setSaving(true); 
     try {
       const { error } = await supabase
         .from('user_profiles')
@@ -29,7 +32,8 @@ const PhoneModal = ({ onClose, onSaveSuccess }: { onClose: () => void; onSaveSuc
       console.error("Erro ao salvar o telefone:", error.message);
       alert('Não foi possível salvar seu telefone. Tente novamente.');
     } finally {
-      setSaving(false);
+      // --- Passo 3: Desativamos o 'saving' no final, mesmo se der erro ---
+      setSaving(false); 
     }
   };
 
@@ -62,9 +66,10 @@ const PhoneModal = ({ onClose, onSaveSuccess }: { onClose: () => void; onSaveSuc
             )}
           </InputMask>
         </div>
+        {/* --- Passo 4: O botão agora usa o estado 'saving' --- */}
         <button
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving} // Desabilita o botão enquanto está salvando
           className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {saving ? 'Salvando...' : 'Salvar e Gerar Link'}
@@ -74,6 +79,7 @@ const PhoneModal = ({ onClose, onSaveSuccess }: { onClose: () => void; onSaveSuc
   );
 };
 
+// --- O RESTO DO UserCatalog CONTINUA IGUAL ---
 export function UserCatalog() {
   const { user, profile, refreshProfile } = useAuth(); 
   const [jerseys, setJerseys] = useState<Jersey[]>([]);
