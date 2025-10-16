@@ -12,7 +12,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export type Profile = {
   id: string;
   email: string;
-  role: 'admin' | 'reseller';
+  role: 'reseller' | 'member' | 'admin' | 'super_admin';
   subscription_status: 'active' | 'inactive' | 'trial';
   subscription_end_date: string | null;
   created_at: string;

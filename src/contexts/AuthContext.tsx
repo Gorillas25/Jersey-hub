@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User } from '@supabase/supabase-js';
 import { supabase, Profile } from '../lib/supabase';
 
+// --- PASSO 1: ATUALIZAMOS O TIPO PARA INCLUIR AS NOVAS FUNÇÕES ---
 type AuthContextType = {
   user: User | null;
   profile: Profile | null;
@@ -11,6 +12,8 @@ type AuthContextType = {
   signOut: () => Promise<void>;
   isAdmin: boolean;
   hasActiveSubscription: boolean;
+  refreshProfile: () => Promise<void>; // Função para recarregar o perfil
+  setProfile: (profile: Profile | null) => void; // Função para atualizar o perfil localmente
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -84,7 +87,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   };
 
-  const isAdmin = profile?.role === 'admin';
+  // --- PASSO 2: CRIAMOS A FUNÇÃO refreshProfile ---
+  const refreshProfile = async () => {
+    if (user) {
+      // Não ativamos o 'loading' para ser uma atualização silenciosa
+      await loadProfile(user.id);
+    }
+  };
+
+  // Lógica de verificação de admin (já ajustada para super_admin também)
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
 
   const hasActiveSubscription =
     profile?.subscription_status === 'active' &&
@@ -92,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
+      // --- PASSO 3: EXPORTAMOS AS NOVAS FUNÇÕES ---
       value={{
         user,
         profile,
@@ -101,6 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut,
         isAdmin,
         hasActiveSubscription,
+        refreshProfile,
+        setProfile, // Exportamos a função 'setProfile' do nosso useState
       }}
     >
       {children}
