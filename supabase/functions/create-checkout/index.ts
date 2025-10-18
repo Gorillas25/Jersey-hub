@@ -51,7 +51,7 @@ Deno.serve(async (req: Request) => {
       mode: "subscription",
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}/catalogo?pagamento=sucesso`,
+      success_url: `${origin}/sucesso`,
       cancel_url: `${origin}/planos`,
       allow_promotion_codes: true,
     };

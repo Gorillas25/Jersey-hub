@@ -1,4 +1,5 @@
-import { CheckCircle, Mail, Lock } from 'lucide-react';
+import { CheckCircle, Mail, Lock, AlertTriangle } from 'lucide-react'; // Adicionamos o AlertTriangle
+import { Link } from 'react-router-dom'; // Usamos o Link para uma navegação mais fluida
 
 export function SuccessPage() {
   return (
@@ -12,34 +13,43 @@ export function SuccessPage() {
             Pagamento Confirmado!
           </h1>
           <p className="text-xl text-slate-600">
-            Sua assinatura do JerseyHub foi ativada com sucesso
+            Sua assinatura do JerseyHub foi ativada com sucesso.
           </p>
         </div>
 
         <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-6 mb-8">
-          <div className="flex items-start gap-4 mb-4">
+          <div className="flex items-start gap-4">
             <Mail className="w-6 h-6 text-emerald-600 flex-shrink-0 mt-1" />
             <div>
               <h3 className="font-semibold text-emerald-900 mb-2">
-                Verifique seu email
+                Verifique seu e-mail
               </h3>
-              <p className="text-emerald-800 text-sm">
-                Enviamos suas credenciais de acesso (email e senha) para o email cadastrado no
-                checkout. Pode levar alguns minutos para chegar.
+              {/* --- MUDANÇA 1: AVISO DE SPAM PROATIVO --- */}
+              <p className="text-emerald-800 text-sm mb-3">
+                Enviamos suas credenciais de acesso para o e-mail cadastrado no checkout.
               </p>
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-3 flex items-start gap-2 text-sm text-yellow-900">
+                <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-px" />
+                <span>
+                  <strong>Importante:</strong> Se não encontrar na caixa de entrada, verifique sua pasta de <strong>spam</strong> ou lixo eletrônico.
+                </span>
+              </div>
             </div>
           </div>
+        </div>
 
+        <div className="bg-slate-50 rounded-lg p-6 mb-8">
           <div className="flex items-start gap-4">
-            <Lock className="w-6 h-6 text-emerald-600 flex-shrink-0 mt-1" />
+            <Lock className="w-6 h-6 text-slate-600 flex-shrink-0 mt-1" />
             <div>
-              <h3 className="font-semibold text-emerald-900 mb-2">
+              <h3 className="font-semibold text-slate-900 mb-2">
                 Primeiros passos
               </h3>
-              <ol className="text-emerald-800 text-sm space-y-2">
-                <li>1. Abra o email com o assunto "Sua conta JerseyHub foi criada"</li>
-                <li>2. Copie suas credenciais de acesso</li>
-                <li>3. Faça login na plataforma</li>
+              <ol className="text-slate-700 text-sm space-y-2">
+                {/* --- MUDANÇA 2: ASSUNTO DO E-MAIL CORRIGIDO --- */}
+                <li>1. Abra o e-mail com o assunto "<strong>✅ Seu acesso ao JerseyHub está liberado!</strong>"</li>
+                <li>2. Copie suas credenciais de acesso (login e senha)</li>
+                <li>3. Volte aqui e clique no botão abaixo para fazer login</li>
                 <li>4. Comece a usar o catálogo!</li>
               </ol>
             </div>
@@ -47,44 +57,12 @@ export function SuccessPage() {
         </div>
 
         <div className="space-y-4">
-          <a
-            href="/"
+          <Link
+            to="/login"
             className="block w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-4 rounded-lg transition text-center"
           >
             Fazer Login Agora
-          </a>
-
-          <div className="bg-slate-50 rounded-lg p-6">
-            <h3 className="font-semibold text-slate-900 mb-3">
-              O que você recebeu:
-            </h3>
-            <ul className="space-y-2 text-slate-700 text-sm">
-              <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
-                Acesso completo ao catálogo de camisas
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
-                Envio ilimitado para clientes via WhatsApp
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
-                Atualizações automáticas do catálogo
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
-                Suporte prioritário
-              </li>
-            </ul>
-          </div>
-
-          <div className="border-t pt-6">
-            <p className="text-slate-600 text-sm text-center">
-              Não recebeu o email?{' '}
-              <br className="md:hidden" />
-              Verifique sua caixa de spam ou entre em contato com o suporte.
-            </p>
-          </div>
+          </Link>
         </div>
       </div>
     </div>
