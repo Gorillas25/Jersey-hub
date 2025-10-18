@@ -58,10 +58,10 @@ export function SuccessPage() {
 
         <div className="space-y-4">
           <Link
-            to="/login"
+            to="/"
             className="block w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-4 rounded-lg transition text-center"
           >
-            Fazer Login Agora
+            Ir para a Página Inicial e Fazer Login
           </Link>
         </div>
       </div>
