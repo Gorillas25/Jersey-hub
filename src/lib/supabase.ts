@@ -28,6 +28,7 @@ export type Jersey = {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  teams: { name: string } | null;
 };
 
 export type WebhookLog = {
