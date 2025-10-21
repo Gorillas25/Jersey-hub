@@ -1,38 +1,39 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, Link as LinkIcon, X, CheckCircle2, Copy, Check, CheckSquare, Square } from 'lucide-react';
+// --- Ícones CheckSquare e Square adicionados ---
+import { Search, Filter, Link as LinkIcon, X, CheckCircle2, Copy, Check, CheckSquare, Square } from 'lucide-react'; 
 import InputMask from 'react-input-mask';
 import { supabase, Jersey, Profile } from '../lib/supabase'; // Garanta que Jersey e Profile estão exportados
 import { useAuth } from '../contexts/AuthContext';
 
 // --- COMPONENTE DE LOADING "ESTILO JOGO" ---
 const ProgressOverlay = ({ message }: { message: string }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-[60]">
-      <div className="flex flex-col items-center gap-6">
-        <div className="relative w-24 h-24">
-          <svg className="w-full h-full" viewBox="0 0 100 100">
-            <circle className="text-slate-700" strokeWidth="8" stroke="currentColor" fill="transparent" r="42" cx="50" cy="50" />
-            <circle
-              className="text-emerald-500 animate-spin-slow" // Garanta que 'animate-spin-slow' esteja no tailwind.config.js e CSS
-              strokeWidth="8"
-              strokeDasharray="264"
-              strokeDashoffset="198"
-              strokeLinecap="round"
-              stroke="currentColor"
-              fill="transparent"
-              r="42"
-              cx="50"
-              cy="50"
-              style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
-            />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <LinkIcon className="w-10 h-10 text-slate-400" />
-          </div>
+  <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-[60]">
+    <div className="flex flex-col items-center gap-6">
+      <div className="relative w-24 h-24">
+        <svg className="w-full h-full" viewBox="0 0 100 100">
+          <circle className="text-slate-700" strokeWidth="8" stroke="currentColor" fill="transparent" r="42" cx="50" cy="50" />
+          <circle
+            className="text-emerald-500 animate-spin-slow" // Garanta que 'animate-spin-slow' esteja no tailwind.config.js e CSS
+            strokeWidth="8"
+            strokeDasharray="264"
+            strokeDashoffset="198"
+            strokeLinecap="round"
+            stroke="currentColor"
+            fill="transparent"
+            r="42"
+            cx="50"
+            cy="50"
+            style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <LinkIcon className="w-10 h-10 text-slate-400" />
         </div>
-        <p className="text-white text-lg font-semibold">{message}</p>
       </div>
+      <p className="text-white text-lg font-semibold">{message}</p>
     </div>
-  );
+  </div>
+);
 
 // --- COMPONENTE MODAL DE ONBOARDING ---
 const OnboardingPhoneModal = ({ onSaveSuccess }: { onSaveSuccess: () => void; }) => {
@@ -115,10 +116,12 @@ export function UserCatalog() {
   const [loadingMessage, setLoadingMessage] = useState('');
   const [copied, setCopied] = useState(false);
   const [catalogLoading, setCatalogLoading] = useState(true);
+  // --- ESTADO PARA BOTÃO SELECIONAR TODAS ---
   const [allFilteredSelected, setAllFilteredSelected] = useState(false);
 
   useEffect(() => { loadJerseys(); }, []);
 
+  // Atualiza o estado do botão "Selecionar Todas"
   useEffect(() => {
     if (filteredJerseys.length > 0) {
       const allVisibleAreSelected = filteredJerseys.every(j => selectedJerseys.has(j.id));
@@ -205,21 +208,13 @@ export function UserCatalog() {
     }
   };
 
-  // --- FUNÇÃO generateShortCode CORRIGIDA ---
   const generateShortCode = async () => {
-    // Tenta primeiro chamar a função do banco (mais robusta contra colisões)
     const { data, error } = await supabase.rpc('generate_short_code');
-    if (!error && data) {
-      return data;
-    }
-
-    // Se a função falhar (ou não existir), gera no frontend como fallback
+    if (!error && data) { return data; }
     console.warn("Falha ao chamar RPC generate_short_code. Gerando código no frontend.", error);
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     let code = '';
-    for (let i = 0; i < 8; i++) { // <-- Loop corrigido
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
+    for (let i = 0; i < 8; i++) { code += chars.charAt(Math.floor(Math.random() * chars.length)); }
     return code;
   };
 
@@ -244,12 +239,13 @@ export function UserCatalog() {
     setCopied(false);
   };
 
+  // --- FUNÇÃO SELECIONAR/DESELECIONAR TODAS ---
   const handleSelectAllFiltered = () => {
     if (allFilteredSelected) {
-      setSelectedJerseys(new Set());
+      setSelectedJerseys(new Set()); 
     } else {
       const filteredIds = filteredJerseys.map(j => j.id);
-      setSelectedJerseys(new Set(filteredIds));
+      setSelectedJerseys(new Set(filteredIds)); 
     }
   };
 
@@ -278,6 +274,7 @@ export function UserCatalog() {
               {filterTags.length > 0 && <span className="bg-emerald-500 text-white text-xs px-2 py-0.5 rounded-full">{filterTags.length}</span>}
             </button>
 
+            {/* --- BOTÃO SELECIONAR TODAS --- */}
             {filteredJerseys.length > 0 && (
               <button
                 onClick={handleSelectAllFiltered}
@@ -320,8 +317,9 @@ export function UserCatalog() {
             {filteredJerseys.map((jersey) => {
               const isSelected = selectedJerseys.has(jersey.id);
               return (
-                <div key={jersey.id} onClick={() => toggleJerseySelection(jersey.id)} className={`bg-white rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-300 cursor-pointer overflow-hidden relative border-2 ${ isSelected ? 'border-emerald-500' : 'border-transparent' } group`}> {/* Adicionado group para hover na imagem */}
+                <div key={jersey.id} onClick={() => toggleJerseySelection(jersey.id)} className={`bg-white rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-300 cursor-pointer overflow-hidden relative border-2 ${ isSelected ? 'border-emerald-500' : 'border-transparent' } group`}>
                   {isSelected && <div className="absolute top-2 right-2 bg-emerald-500 text-white rounded-full p-1 z-10 shadow-md"><CheckCircle2 className="w-5 h-5" /></div>}
+                  {/* --- ALTURA DA IMAGEM ATUALIZADA --- */}
                   <img src={jersey.image_url || '/placeholder.jpg'} alt={jersey.title || 'Camisa'} className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105" />
                   <div className="p-4">
                     <h3 className="font-semibold text-slate-800 mb-1 truncate" title={jersey.title || 'Sem título'}>{jersey.title || 'Sem título'}</h3>
@@ -337,13 +335,13 @@ export function UserCatalog() {
         )}
 
         {showFilterModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl max-w-md w-full p-6 flex flex-col" style={{maxHeight: '90vh'}}>
-              <div className="flex justify-between items-center mb-6 flex-shrink-0"><h3 className="text-2xl font-bold text-slate-900">Filtros</h3><button onClick={() => setShowFilterModal(false)} className="text-slate-400 hover:text-slate-600"><X className="w-6 h-6" /></button></div>
-              <div className="space-y-2 overflow-y-auto mb-6 flex-grow">{allTags.map((tag) => <label key={tag} className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-lg cursor-pointer"><input type="checkbox" checked={filterTags.includes(tag)} onChange={() => toggleTagFilter(tag)} className="w-4 h-4 text-emerald-500 rounded focus:ring-emerald-500" /><span className="text-slate-700">{tag}</span></label>)}</div>
-              <div className="mt-auto flex gap-3 flex-shrink-0"><button onClick={() => setFilterTags([])} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 rounded-lg transition">Limpar</button><button onClick={() => setShowFilterModal(false)} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 rounded-lg transition">Aplicar</button></div>
-            </div>
-          </div>
+           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+             <div className="bg-white rounded-xl max-w-md w-full p-6 flex flex-col" style={{maxHeight: '90vh'}}>
+               <div className="flex justify-between items-center mb-6 flex-shrink-0"><h3 className="text-2xl font-bold text-slate-900">Filtros</h3><button onClick={() => setShowFilterModal(false)} className="text-slate-400 hover:text-slate-600"><X className="w-6 h-6" /></button></div>
+               <div className="space-y-2 overflow-y-auto mb-6 flex-grow">{allTags.map((tag) => <label key={tag} className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-lg cursor-pointer"><input type="checkbox" checked={filterTags.includes(tag)} onChange={() => toggleTagFilter(tag)} className="w-4 h-4 text-emerald-500 rounded focus:ring-emerald-500" /><span className="text-slate-700">{tag}</span></label>)}</div>
+               <div className="mt-auto flex gap-3 flex-shrink-0"><button onClick={() => setFilterTags([])} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 rounded-lg transition">Limpar</button><button onClick={() => setShowFilterModal(false)} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 rounded-lg transition">Aplicar</button></div>
+             </div>
+           </div>
         )}
 
         {showLinkModal && (
