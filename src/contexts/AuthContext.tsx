@@ -82,9 +82,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
+const signOut = async () => {
+    // Primeiro, faz o logout no Supabase
+    const { error } = await supabase.auth.signOut();
+    setUser(null); 
     setProfile(null);
+    // O onAuthStateChange também vai rodar, mas a limpeza imediata ajuda
   };
 
   // --- PASSO 2: CRIAMOS A FUNÇÃO refreshProfile ---
