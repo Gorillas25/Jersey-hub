@@ -1,20 +1,22 @@
 import { useState } from 'react';
-import { LogOut, UserCircle, ChevronDown, ChevronUp, Shirt } from 'lucide-react';
-import { Link } from 'react-router-dom'; // PASSO 1: Importamos o Link
+import { LogOut, UserCircle, ChevronDown, ChevronUp, Shirt } from 'lucide-react'; // Adicionei Shirt de volta
+import { Link, useNavigate } from 'react-router-dom'; // Importamos useNavigate
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase'; // Assumindo que você importe o supabase aqui para o signOut
+// Removido import do supabase, pois signOut agora vem do contexto
 
 export function Header() {
-  const { user, profile, isAdmin } = useAuth();
+  // Pegamos a função signOut do contexto AGORA
+  const { user, profile, isAdmin, signOut } = useAuth(); 
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const navigate = useNavigate(); // Hook para navegação programática
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setDropdownOpen(false); // Fecha o dropdown ao sair
-    // O onAuthStateChange no AuthContext vai lidar com a atualização do estado
+    await signOut(); // Chama a função signOut do contexto (que agora limpa user e profile)
+    setDropdownOpen(false); 
+    navigate('/'); // FORÇA o redirecionamento para a página inicial
   };
 
-  const getInitials = (email: string | undefined) => {
+  const getInitials = (email: string | undefined | null) => { // Adicionado | null
     return email ? email.substring(0, 2).toUpperCase() : '?';
   };
 
@@ -27,14 +29,15 @@ export function Header() {
             <Shirt className="w-6 h-6 text-white" /> 
           </div>
           <span className="text-xl font-bold text-slate-900">JerseyHub</span>
-          {profile && (
+          {/* Mostra a Role apenas se o perfil estiver carregado */}
+          {profile && ( 
             <span className="text-sm bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full ml-2">
               {isAdmin ? 'Admin' : 'Revendedor'}
             </span>
           )}
         </Link>
 
-        {/* User Info & Actions */}
+        {/* User Info & Actions - Só mostra se user e profile existirem */}
         {user && profile && (
           <div className="relative">
             <button
@@ -56,16 +59,15 @@ export function Header() {
             {/* Dropdown Menu */}
             {dropdownOpen && (
               <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-slate-200 py-2 z-50">
-                <div className="px-4 py-2 border-b border-slate-200 md:hidden"> {/* Mostra email/status no mobile */}
+                <div className="px-4 py-2 border-b border-slate-200 md:hidden"> 
                   <p className="text-sm font-medium text-slate-800">{profile.full_name || user.email}</p>
                   <p className="text-xs text-emerald-600 font-semibold">
                     {profile.subscription_status === 'active' ? 'Assinatura Ativa' : 'Assinatura Inativa'}
                   </p>
                 </div>
-                {/* --- PASSO 2: ADICIONAMOS O LINK "MEUS DADOS" AQUI --- */}
                 <Link
                   to="/perfil"
-                  onClick={() => setDropdownOpen(false)} // Fecha dropdown ao clicar
+                  onClick={() => setDropdownOpen(false)} 
                   className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
                 >
                   <UserCircle className="w-5 h-5" />
@@ -86,6 +88,3 @@ export function Header() {
     </header>
   );
 }
-
-// Pequena melhoria adicionada: um dropdown para organizar as ações do usuário.
-// O link "Meus Dados" foi colocado dentro desse dropdown.

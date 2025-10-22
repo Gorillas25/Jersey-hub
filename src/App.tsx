@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'; // Adicionado useLocation
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LandingPage } from './components/LandingPage';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -9,29 +9,56 @@ import { SuccessPage } from './components/SuccessPage';
 import { SharedLinkView } from './components/SharedLinkView';
 import { ProfilePage } from './components/ProfilePage';
 
-// --- COMPONENTE DE SEGURANÇA (Verifica Assinatura) ---
-// Este componente AGORA chama useAuth
+// --- COMPONENTE DE LOADING PADRÃO ---
+const LoadingSpinner = () => (
+  <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
+  </div>
+);
+
+// --- COMPONENTE DE SEGURANÇA (MAIS PACIENTE E INTELIGENTE) ---
 function ProtectedRoute({ children }: { children: JSX.Element }) {
-  const { profile, loading, hasActiveSubscription, isAdmin } = useAuth(); // useAuth é chamado AQUI
+  const { user, profile, loading, hasActiveSubscription, isAdmin } = useAuth();
+  const location = useLocation(); // Pega a rota atual
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
-      </div>
-    );
+  // --- PASSO 1: ESPERAR O CARREGAMENTO COMPLETO ---
+  // Só continua se o loading geral E o carregamento do usuário E do perfil terminaram
+  if (loading || (user && !profile)) { 
+    return <LoadingSpinner />;
   }
 
-  // Permite acesso se tiver assinatura OU for admin
-  if (!hasActiveSubscription && !isAdmin) { 
-    return <Navigate to="/planos" replace />;
+  // --- PASSO 2: TOMAR A DECISÃO APÓS O CARREGAMENTO ---
+  // Se NÃO está logado OU (está logado MAS não tem assinatura E não é admin)
+  if (!user || (!hasActiveSubscription && !isAdmin)) {
+    // Redireciona para /planos, guardando a rota que ele tentou acessar
+    return <Navigate to="/planos" state={{ from: location }} replace />; 
   }
 
+  // Se passou, permite o acesso
   return children;
 }
 
+// --- Componente para áreas públicas (MAIS INTELIGENTE) ---
+function PublicArea({ children }: { children: JSX.Element }) {
+  const { user, profile, loading, hasActiveSubscription, isAdmin } = useAuth();
+
+  // Espera carregar tudo
+  if (loading || (user && !profile)) {
+    return <LoadingSpinner />;
+  }
+
+  // Se o usuário está logado E tem acesso (assinatura ou admin)...
+  if (user && (hasActiveSubscription || isAdmin)) {
+    // ...redireciona para o catálogo (ou dashboard se admin)
+    return <Navigate to={isAdmin ? "/admin" : "/catalogo"} replace />; 
+  }
+  
+  // Se não logado, OU logado mas sem acesso, mostra a página pública
+  return children; 
+}
+
+
 // --- ROTA ESPECIAL PARA O LINK COMPARTILHADO ---
-// Não precisa de autenticação, então fica fora do MainAppRoutes
 function PathRouter() {
   const pathname = window.location.pathname;
   const linkMatch = pathname.match(/^\/link\/([a-zA-Z0-9]+)$/);
@@ -44,75 +71,37 @@ function PathRouter() {
 }
 
 // --- ESTRUTURA PRINCIPAL DAS ROTAS ---
-// Este componente NÃO chama mais useAuth diretamente
 function MainAppRoutes() {
   return (
     <BrowserRouter>
-      {/* O Header SÓ é renderizado aqui se precisarmos dele em TODAS as rotas internas. 
-          Se ele precisa saber se o user está logado, ele mesmo chamará useAuth. */}
       <Header /> 
-      
       <Routes>
-        {/* Rota Principal: LandingPage para não logados */}
+        {/* Rotas Públicas */}
         <Route path="/" element={<PublicArea><LandingPage /></PublicArea>} />
-
-        {/* Rota de Planos: Acessível para todos */}
         <Route path="/planos" element={<PublicArea><PaymentPage /></PublicArea>} />
-        
-         {/* Rota de Sucesso: Acessível para todos */}
         <Route path="/sucesso" element={<PublicArea><SuccessPage /></PublicArea>} />
-
-        {/* Rota de Login (geralmente tratada na Landing Page) */}
-        <Route path="/login" element={<PublicArea><LandingPage /></PublicArea>} /> 
+        {/* Se tiver uma página de login separada, use PublicArea nela também */}
+        {/* <Route path="/login" element={<PublicArea><LoginPage /></PublicArea>} /> */}
 
         {/* --- ROTAS PROTEGIDAS --- */}
-        <Route 
-          path="/catalogo" 
-          element={<ProtectedRoute><AppArea /></ProtectedRoute>} 
-        />
-        <Route
-          path="/perfil"
-          element={<ProtectedRoute><ProfilePage /></ProtectedRoute>}
-        />
-        {/* Adicione outras rotas protegidas aqui (ex: /admin) */}
-        <Route 
-          path="/admin"
-          element={<ProtectedRoute><AdminArea /></ProtectedRoute>}
-        />
+        <Route path="/catalogo" element={<ProtectedRoute><AppArea /></ProtectedRoute>} />
+        <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute><AdminArea /></ProtectedRoute>} />
 
+        {/* Rota Catch-all -> Leva para Home */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
 }
 
-// --- Componentes Auxiliares para Lógica de Roteamento ---
-
-// Componente para áreas públicas (se usuário logado, redireciona para catálogo)
-function PublicArea({ children }: { children: JSX.Element }) {
-  const { user, loading } = useAuth();
-  if (loading) return <div>Carregando...</div>; // Ou um spinner melhor
-  if (user) return <Navigate to="/catalogo" replace />; // Se já logado, manda pro catálogo
-  return children; // Se não logado, mostra a página pública
-}
-
-// Componente que decide entre Catálogo e Admin DENTRO da área protegida
-function AppArea() {
-  const { isAdmin } = useAuth();
-  return isAdmin ? <AdminDashboard /> : <UserCatalog />;
-}
-
-// Componente específico para a área de Admin (se precisar de mais lógica)
-function AdminArea() {
-  const { isAdmin } = useAuth();
-  // Poderia ter uma verificação extra aqui se nem todo admin pudesse ver tudo
-  return isAdmin ? <AdminDashboard /> : <Navigate to="/catalogo" replace />; // Se não for admin, volta pro catálogo
-}
-
+// --- Componentes Auxiliares (sem alterações) ---
+function AppArea() { const { isAdmin } = useAuth(); return isAdmin ? <AdminDashboard /> : <UserCatalog />; }
+function AdminArea() { const { isAdmin } = useAuth(); return isAdmin ? <AdminDashboard /> : <Navigate to="/catalogo" replace />; }
 
 // --- COMPONENTE RAIZ ---
 function App() {
   return (
-    // AuthProvider continua sendo o componente mais externo
     <AuthProvider> 
       <PathRouter />
     </AuthProvider>
