@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-// --- Ícones CheckSquare e Square adicionados ---
-import { Search, Filter, Link as LinkIcon, X, CheckCircle2, Copy, Check, CheckSquare, Square } from 'lucide-react'; 
+import { Search, Filter, Link as LinkIcon, X, CheckCircle2, Copy, Check, CheckSquare, Square } from 'lucide-react';
 import InputMask from 'react-input-mask';
 import { supabase, Jersey, Profile } from '../lib/supabase'; // Garanta que Jersey e Profile estão exportados
 import { useAuth } from '../contexts/AuthContext';
+
+// --- CONSTANTE PARA PAGINAÇÃO ---
+const ITEMS_PER_PAGE = 20; // Quantas camisas carregar por vez
 
 // --- COMPONENTE DE LOADING "ESTILO JOGO" ---
 const ProgressOverlay = ({ message }: { message: string }) => (
@@ -116,12 +118,13 @@ export function UserCatalog() {
   const [loadingMessage, setLoadingMessage] = useState('');
   const [copied, setCopied] = useState(false);
   const [catalogLoading, setCatalogLoading] = useState(true);
-  // --- ESTADO PARA BOTÃO SELECIONAR TODAS ---
   const [allFilteredSelected, setAllFilteredSelected] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => { loadJerseys(); }, []);
 
-  // Atualiza o estado do botão "Selecionar Todas"
   useEffect(() => {
     if (filteredJerseys.length > 0) {
       const allVisibleAreSelected = filteredJerseys.every(j => selectedJerseys.has(j.id));
@@ -138,30 +141,68 @@ export function UserCatalog() {
     }
   }, [profile, isAdmin]);
 
-  const loadJerseys = async () => {
-    setCatalogLoading(true);
+  const loadJerseys = async (isInitialLoad = true) => {
+    if(isInitialLoad) {
+      setCatalogLoading(true);
+      setHasMore(true);
+      setCurrentPage(0);
+    } else {
+      setLoadingMore(true);
+    }
+
+    const pageToLoad = isInitialLoad ? 0 : currentPage + 1;
+    const from = pageToLoad * ITEMS_PER_PAGE;
+    const to = from + ITEMS_PER_PAGE - 1;
+
     try {
       const { data, error } = await supabase
         .from('jerseys')
         .select(`id, title, team_id, category_id, season, image_url, tags, created_at, teams ( name ) `)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
       if (error) throw error;
+
       if (data) {
         const formattedData = data.map(j => ({ ...j, team_name: j.teams?.name || 'Time Desconhecido' }));
-        setJerseys(formattedData as Jersey[]);
-        const tags = new Set<string>();
-        formattedData.forEach((jersey) => {
-          (jersey.tags || []).forEach((tag: string) => {
-             if (tag && tag.toLowerCase() !== (jersey.team_name || '').toLowerCase()) {
-               tags.add(tag);
-             }
+
+        if (isInitialLoad) {
+          setJerseys(formattedData as Jersey[]);
+          // Extrai tags apenas na carga inicial para evitar recalcular a cada "Carregar Mais"
+          const tags = new Set<string>();
+          formattedData.forEach((jersey) => {
+            (jersey.tags || []).forEach((tag: string) => {
+              if (tag && tag.toLowerCase() !== (jersey.team_name || '').toLowerCase()) tags.add(tag);
+            });
           });
-        });
-        setAllTags(Array.from(tags).sort());
+          setAllTags(Array.from(tags).sort());
+        } else {
+          // Adiciona os novos itens aos existentes
+          setJerseys(prevJerseys => [...prevJerseys, ...(formattedData as Jersey[])]);
+        }
+        
+        setCurrentPage(pageToLoad); // Atualiza a página atual
+        if (data.length < ITEMS_PER_PAGE) setHasMore(false); // Chegou ao fim
+
+      } else {
+        if(isInitialLoad) setJerseys([]);
+        setHasMore(false);
       }
-    } catch (error) { console.error("Erro ao carregar as camisas:", error); }
-    finally { setCatalogLoading(false); }
+    } catch (error) {
+      console.error(`Erro ao carregar ${isInitialLoad ? '' : 'mais '}camisas:`, error);
+      setHasMore(false);
+    } finally {
+      if(isInitialLoad) setCatalogLoading(false);
+      else setLoadingMore(false);
+    }
   };
+
+  // Renomeado para loadMoreJerseys para clareza
+  const handleLoadMore = () => {
+     if (!loadingMore && hasMore) {
+        loadJerseys(false); // Chama a função principal com isInitialLoad = false
+     }
+  }
 
   const applyFilters = () => {
     let filtered = jerseys;
@@ -239,13 +280,12 @@ export function UserCatalog() {
     setCopied(false);
   };
 
-  // --- FUNÇÃO SELECIONAR/DESELECIONAR TODAS ---
   const handleSelectAllFiltered = () => {
     if (allFilteredSelected) {
-      setSelectedJerseys(new Set()); 
+      setSelectedJerseys(new Set());
     } else {
       const filteredIds = filteredJerseys.map(j => j.id);
-      setSelectedJerseys(new Set(filteredIds)); 
+      setSelectedJerseys(new Set(filteredIds));
     }
   };
 
@@ -274,7 +314,6 @@ export function UserCatalog() {
               {filterTags.length > 0 && <span className="bg-emerald-500 text-white text-xs px-2 py-0.5 rounded-full">{filterTags.length}</span>}
             </button>
 
-            {/* --- BOTÃO SELECIONAR TODAS --- */}
             {filteredJerseys.length > 0 && (
               <button
                 onClick={handleSelectAllFiltered}
@@ -310,8 +349,10 @@ export function UserCatalog() {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
               <p className="text-slate-500 text-lg">Carregando camisas...</p>
            </div>
+        ) : filteredJerseys.length === 0 && !searchTerm && filterTags.length === 0 ? (
+           <div className="text-center py-16"><p className="text-slate-500 text-lg">Nenhuma camisa cadastrada ainda.</p></div>
         ) : filteredJerseys.length === 0 ? (
-          <div className="text-center py-16"><p className="text-slate-500 text-lg">Nenhuma camisa encontrada para os filtros selecionados</p></div>
+           <div className="text-center py-16"><p className="text-slate-500 text-lg">Nenhuma camisa encontrada para os filtros selecionados.</p></div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
             {filteredJerseys.map((jersey) => {
@@ -319,7 +360,6 @@ export function UserCatalog() {
               return (
                 <div key={jersey.id} onClick={() => toggleJerseySelection(jersey.id)} className={`bg-white rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-300 cursor-pointer overflow-hidden relative border-2 ${ isSelected ? 'border-emerald-500' : 'border-transparent' } group`}>
                   {isSelected && <div className="absolute top-2 right-2 bg-emerald-500 text-white rounded-full p-1 z-10 shadow-md"><CheckCircle2 className="w-5 h-5" /></div>}
-                  {/* --- ALTURA DA IMAGEM ATUALIZADA --- */}
                   <img src={jersey.image_url || '/placeholder.jpg'} alt={jersey.title || 'Camisa'} className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105" />
                   <div className="p-4">
                     <h3 className="font-semibold text-slate-800 mb-1 truncate" title={jersey.title || 'Sem título'}>{jersey.title || 'Sem título'}</h3>
@@ -331,6 +371,19 @@ export function UserCatalog() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* --- BOTÃO CARREGAR MAIS --- */}
+        {!catalogLoading && hasMore && (
+          <div className="text-center mt-12">
+            <button
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 px-8 rounded-lg transition disabled:opacity-50"
+            >
+              {loadingMore ? 'Carregando...' : 'Carregar Mais Camisas'}
+            </button>
           </div>
         )}
 
