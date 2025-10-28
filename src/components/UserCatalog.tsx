@@ -218,8 +218,6 @@ export function UserCatalog() {
     }
   };
 
-  // ... (perto da sua função 'loadJerseys')
-
   const loadTags = async () => {
     console.log("Buscando tags únicas do banco de dados...");
     
