@@ -123,7 +123,20 @@ export function UserCatalog() {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  useEffect(() => { loadJerseys(); }, []);
+ // Roda 1x: Carrega as tags
+  useEffect(() => { loadTags(); }, []); 
+
+  // Roda 1x e sempre que os FILTROS DE TAG mudarem:
+  // (Isso vai recarregar a lista do banco com os filtros)
+  useEffect(() => {
+    loadJerseys(true); // 'true' para resetar a paginação
+  }, [filterTags,searchTerm]);
+
+  // Roda sempre que as CAMISAS (jerseys) ou a BUSCA (searchTerm) mudarem:
+  // (Isso aplica o filtro de busca no frontend)
+  useEffect(() => {
+    applyFilters();
+  }, [jerseys]);
 
   useEffect(() => {
     if (filteredJerseys.length > 0) {
@@ -134,7 +147,6 @@ export function UserCatalog() {
     }
   }, [selectedJerseys, filteredJerseys]);
 
-  useEffect(() => { applyFilters(); }, [jerseys, searchTerm, filterTags]);
   useEffect(() => {
     if (profile && !isAdmin && !profile.phone) {
       setShowOnboardingModal(true);
@@ -149,17 +161,33 @@ export function UserCatalog() {
     } else {
       setLoadingMore(true);
     }
-
     const pageToLoad = isInitialLoad ? 0 : currentPage + 1;
     const from = pageToLoad * ITEMS_PER_PAGE;
     const to = from + ITEMS_PER_PAGE - 1;
 
-    try {
-      const { data, error } = await supabase
+   try {
+      // 1. Inicia a query (sem o 'await' ainda)
+      let query = supabase
         .from('jerseys')
         .select(`id, title, team_id, category_id, season, image_url, tags, created_at, teams ( name ) `)
         .order('created_at', { ascending: false })
         .range(from, to);
+
+      // 2. ADICIONA O FILTRO DE TAGS SE ELE EXISTIR
+      if (filterTags.length > 0) {
+        query = query.overlaps('tags', filterTags);
+      }
+
+      if (searchTerm) {
+        // Busca case-insensitive por 'searchTerm' no título OU no nome do time
+        query = query.or(
+          `title.ilike.%${searchTerm}%,` +         // Busca no título
+          `teams.name.ilike.%${searchTerm}%`      // Busca no nome do time (tabela 'teams')
+        );
+      }
+
+      // 3. Executa a query (agora sim com 'await')
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -168,14 +196,7 @@ export function UserCatalog() {
 
         if (isInitialLoad) {
           setJerseys(formattedData as Jersey[]);
-          // Extrai tags apenas na carga inicial para evitar recalcular a cada "Carregar Mais"
-          const tags = new Set<string>();
-          formattedData.forEach((jersey) => {
-            (jersey.tags || []).forEach((tag: string) => {
-              if (tag && tag.toLowerCase() !== (jersey.team_name || '').toLowerCase()) tags.add(tag);
-            });
-          });
-          setAllTags(Array.from(tags).sort());
+
         } else {
           // Adiciona os novos itens aos existentes
           setJerseys(prevJerseys => [...prevJerseys, ...(formattedData as Jersey[])]);
@@ -197,6 +218,24 @@ export function UserCatalog() {
     }
   };
 
+  // ... (perto da sua função 'loadJerseys')
+
+  const loadTags = async () => {
+    console.log("Buscando tags únicas do banco de dados...");
+    
+    // Aqui está a mágica: chamando a função do Supabase
+    const { data, error } = await supabase.rpc('get_distinct_tags');
+
+    if (error) {
+      console.error("Erro ao carregar tags via RPC:", error);
+      setAllTags([]); // Define como vazio em caso de erro
+    } else {
+      // 'data' será o array de strings, ex: ["Time", "Retrô", "Versão Jogador"]
+      console.log("Tags únicas carregadas:", data);
+      setAllTags(data.sort()); // Ordena alfabeticamente
+    }
+  };
+
   // Renomeado para loadMoreJerseys para clareza
   const handleLoadMore = () => {
      if (!loadingMore && hasMore) {
@@ -205,15 +244,7 @@ export function UserCatalog() {
   }
 
   const applyFilters = () => {
-    let filtered = jerseys;
-    if (searchTerm) {
-      const lowerSearchTerm = searchTerm.toLowerCase();
-      filtered = filtered.filter((j) => (j.title || '').toLowerCase().includes(lowerSearchTerm) || (j.team_name || '').toLowerCase().includes(lowerSearchTerm));
-    }
-    if (filterTags.length > 0) {
-      filtered = filtered.filter((j) => filterTags.some((tag) => (j.tags || []).includes(tag)));
-    }
-    setFilteredJerseys(filtered);
+    setFilteredJerseys(jerseys);
   };
 
   const toggleJerseySelection = (jerseyId: string) => {
