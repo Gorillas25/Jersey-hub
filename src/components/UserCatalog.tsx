@@ -178,15 +178,11 @@ export function UserCatalog() {
         query = query.overlaps('tags', filterTags);
       }
 
-      if (searchTerm) {
-        // Busca case-insensitive por 'searchTerm' no título OU no nome do time
-        query = query.or(
-          `title.ilike.%${searchTerm}%,` +         // Busca no título
-          `teams.name.ilike.%${searchTerm}%`      // Busca no nome do time (tabela 'teams')
-        );
+      if (searchTerm.trim() !== '') {
+        const term = searchTerm.trim().toLowerCase();
+        query = query.ilike('title', `%${term}%`);
       }
 
-      // 3. Executa a query (agora sim com 'await')
       const { data, error } = await query;
 
       if (error) throw error;
