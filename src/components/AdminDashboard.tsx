@@ -1,28 +1,245 @@
 import { useState, useEffect } from 'react';
-import { Upload, Trash2, Edit2, X, Users, ShoppingBag } from 'lucide-react';
+import { Upload, Trash2, Edit2, X, Users, ShoppingBag, Plus} from 'lucide-react';
 import { supabase, Jersey, Profile } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+
+type NewTeamModalProps = {
+  onClose: () => void;
+  onSave: () => void;
+  value: string;
+  onChange: (value: string) => void;
+  loading: boolean;
+};
+
+const NewTeamModal = ({
+  onClose,
+  onSave,
+  value,
+  onChange,
+  loading,
+}: NewTeamModalProps) => (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+    <div className="bg-white rounded-xl max-w-md w-full p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-2xl font-bold text-slate-900">Cadastrar Novo Time</h3>
+        <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+          <X className="w-6 h-6" />
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Nome do Time
+          </label>
+          <input
+            type="text"
+            value={value} // <-- MUDANÇA AQUI
+            onChange={(e) => onChange(e.target.value)} // <-- MUDANÇA AQUI
+            required
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            placeholder="Ex: Al Hilal"
+          />
+        </div>
+
+        <div className="flex gap-3 pt-4">
+          <button
+            type="button"
+            onClick={onSave} // <-- MUDANÇA AQUI
+            disabled={loading} // <-- MUDANÇA AQUI
+            className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50"
+          >
+            {loading ? 'Salvando...' : 'Salvar Time'}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 rounded-lg transition"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const FormModal = ({
+  title,
+  onClose,
+  onSubmit,
+  formData,
+  setFormData,
+  loading,
+  editing,
+  teams,
+  onShowNewTeamModal,
+  onImageChange,
+  imagePreview,
+}: FormModalProps) => (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="bg-white rounded-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-2xl font-bold text-slate-900">{title}</h3>
+        <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+          <X className="w-6 h-6" />
+        </button>
+      </div>
+
+      <form onSubmit={onSubmit} className="space-y-4">
+        {/* --- CAMPO TÍTULO (CORRIGIDO) --- */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Título da Camisa
+          </label>
+          <input
+            type="text"
+            value={formData.title}
+            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            required
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            placeholder="Ex: Flamengo Home 2024"
+          />
+        </div>
+
+        {/* --- CAMPO TIME (CORRIGIDO) --- */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Time
+          </label>
+          <div className="flex items-center gap-2">
+            <select
+              value={formData.team_id}
+              onChange={(e) => setFormData({ ...formData, team_id: e.target.value })}
+              required
+              className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white"
+            >
+              <option value="">Selecione um time</option>
+              {teams.map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={onShowNewTeamModal}
+              title="Cadastrar novo time"
+              className="flex-shrink-0 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold p-2.5 rounded-lg"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* --- CAMPO TAGS (CORRIGIDO) --- */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Tags (separadas por vírgula)
+          </label>
+          <input
+            type="text"
+            value={formData.tags}
+            onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            placeholder="Ex: 2024, home, titular"
+          />
+        </div>
+
+        {/* --- CAMPO IMAGEM (CORRIGIDO) --- */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Imagem {editing && '(deixe em branco para manter a atual)'}
+          </label>
+          <label
+            htmlFor="image-upload"
+            className="relative flex justify-center items-center w-full h-48 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100"
+          >
+            {imagePreview ? (
+              <img
+                src={imagePreview}
+                alt="Preview da camisa"
+                className="w-full h-full object-contain p-2"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center text-slate-500">
+                <Upload className="w-8 h-8 mb-2" />
+                <span className="font-semibold">Clique para escolher um arquivo</span>
+                <span className="text-sm">PNG ou JPG</span>
+              </div>
+            )}
+          </label>
+        </div>
+
+        {/* --- BOTÕES (CORRIGIDO) --- */}
+        <div className="flex gap-3 pt-4">
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50"
+          >
+            {loading ? 'Salvando...' : editing ? 'Atualizar' : 'Cadastrar'}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 rounded-lg transition"
+          >
+            Cancelar
+          </button>
+        </div>
+      </form>
+      <input
+            id="image-upload"
+            type="file"
+            accept="image/*"
+            onChange={onImageChange}
+            className="hidden"
+          />
+    </div>
+  </div>
+);
+
+const initialFormData = {
+  title: '',
+  team_id: '',
+  tags: '',
+  image: null as File | null,
+};
+
+type FormModalProps = {
+  title: string;
+  onClose: () => void;
+  onSubmit: (e: React.FormEvent) => void;
+  formData: typeof initialFormData;
+  setFormData: React.Dispatch<React.SetStateAction<typeof initialFormData>>;
+  loading: boolean;
+  editing: boolean;
+  teams: any[];
+  onShowNewTeamModal: () => void;
+  onImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  imagePreview: string | null;
+};
 
 export function AdminDashboard() {
   const { user } = useAuth();
   const [jerseys, setJerseys] = useState<Jersey[]>([]);
   const [users, setUsers] = useState<Profile[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [showNewTeamModal, setShowNewTeamModal] = useState(false);
   const [editingJersey, setEditingJersey] = useState<Jersey | null>(null);
   const [loading, setLoading] = useState(false);
+  const [newTeamName, setNewTeamName] = useState('');
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'jerseys' | 'users'>('jerseys');
-
-  const [formData, setFormData] = useState({
-    title: '',
-    team_name: '',
-    tags: '',
-    image: null as File | null,
-  });
+  const [formData, setFormData] = useState(initialFormData);
 
   useEffect(() => {
     loadJerseys();
     loadUsers();
+    loadTeams();
   }, []);
 
   const loadJerseys = async () => {
@@ -47,13 +264,24 @@ export function AdminDashboard() {
     }
   };
 
+  const loadTeams = async () => {
+    const { data, error } = await supabase
+      .from('teams')
+      .select('id, name')
+      .order('name', { ascending: true });
+    
+    if (!error && data) {
+      setTeams(data);
+    }
+  };
+
   const handleImageUpload = async (file: File): Promise<string | null> => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random()}.${fileExt}`;
     const filePath = `${fileName}`;
 
     const { error: uploadError } = await supabase.storage
-      .from('jerseys')
+      .from('jersey-images')
       .upload(filePath, file);
 
     if (uploadError) {
@@ -61,12 +289,18 @@ export function AdminDashboard() {
       return null;
     }
 
-    const { data } = supabase.storage.from('jerseys').getPublicUrl(filePath);
+    const { data } = supabase.storage.from('jersey-images').getPublicUrl(filePath);
     return data.publicUrl;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!editingJersey && !formData.image) {
+      alert('Por favor, selecione uma imagem para a nova camisa.');
+      return; // Para o envio
+    }
+
     setLoading(true);
 
     try {
@@ -92,7 +326,7 @@ export function AdminDashboard() {
           .from('jerseys')
           .update({
             title: formData.title,
-            team_name: formData.team_name,
+            team_id: formData.team_id,
             tags,
             image_url: imageUrl,
           })
@@ -103,7 +337,7 @@ export function AdminDashboard() {
       } else {
         const { error } = await supabase.from('jerseys').insert({
           title: formData.title,
-          team_name: formData.team_name,
+          team_id: formData.team_id,
           tags,
           image_url: imageUrl,
           created_by: user?.id,
@@ -113,7 +347,7 @@ export function AdminDashboard() {
         alert('Camisa cadastrada com sucesso!');
       }
 
-      setFormData({ title: '', team_name: '', tags: '', image: null });
+      setFormData({ title: '', team_id: '', tags: '', image: null });
       setShowUploadForm(false);
       setShowEditForm(false);
       setEditingJersey(null);
@@ -151,11 +385,70 @@ export function AdminDashboard() {
     setEditingJersey(jersey);
     setFormData({
       title: jersey.title,
-      team_name: jersey.team_name,
+      team_id: jersey.team_id,
       tags: jersey.tags.join(', '),
       image: null,
     });
+    setImagePreview(jersey.image_url);
     setShowEditForm(true);
+  };
+
+  const handleSaveNewTeam = async () => {
+    const teamName = newTeamName.trim();
+    if (!teamName) {
+      alert('Por favor, digite o nome do time.');
+      return;
+    }
+    setLoading(true);
+
+    try {
+      // 1. Insere o novo time na tabela 'teams'
+      const { data, error } = await supabase
+        .from('teams')
+        .insert({ name: teamName })
+        .select() // <-- Pede ao Supabase para retornar o time que acabou de criar
+        .single(); // <-- Pega ele como um objeto único
+
+      if (error) throw error;
+
+      if (data) {
+        // 2. Mágica: Atualiza o formulário principal com o ID do time novo
+        setFormData({ ...formData, team_id: data.id });
+        
+        // 3. Recarrega a lista de times para incluir o novo
+        await loadTeams();
+        
+        // 4. Fecha o modal de "novo time"
+        setShowNewTeamModal(false);
+        setNewTeamName('');
+      }
+
+    } catch (error: any) {
+      console.error('Erro ao salvar novo time:', error.message);
+      alert('Erro ao salvar o time. Verifique se ele já não existe.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    
+    // 1. Salva o arquivo no estado do formulário (como antes)
+    setFormData({ ...formData, image: file });
+
+    // 2. Limpa o preview antigo, se existir (evita memory leak)
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
+
+    // 3. Cria e define o novo preview
+    if (file) {
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+    } else {
+      setImagePreview(null);
+    }
   };
 
   const handleUpdateUserSubscription = async (
@@ -181,93 +474,6 @@ export function AdminDashboard() {
     }
   };
 
-  const FormModal = ({ title, onClose }: { title: string; onClose: () => void }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-2xl font-bold text-slate-900">{title}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Título da Camisa
-            </label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              required
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              placeholder="Ex: Flamengo Home 2024"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Nome do Time
-            </label>
-            <input
-              type="text"
-              value={formData.team_name}
-              onChange={(e) => setFormData({ ...formData, team_name: e.target.value })}
-              required
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              placeholder="Ex: Flamengo"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Tags (separadas por vírgula)
-            </label>
-            <input
-              type="text"
-              value={formData.tags}
-              onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              placeholder="Ex: 2024, home, titular"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Imagem {editingJersey && '(deixe em branco para manter a atual)'}
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) =>
-                setFormData({ ...formData, image: e.target.files?.[0] || null })
-              }
-              required={!editingJersey}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-            />
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50"
-            >
-              {loading ? 'Salvando...' : editingJersey ? 'Atualizar' : 'Cadastrar'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 rounded-lg transition"
-            >
-              Cancelar
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -441,8 +647,18 @@ export function AdminDashboard() {
             title="Cadastrar Nova Camisa"
             onClose={() => {
               setShowUploadForm(false);
-              setFormData({ title: '', team_name: '', tags: '', image: null });
+              setFormData(initialFormData);
+              setImagePreview(null);
             }}
+            onSubmit={handleSubmit}
+            formData={formData}
+            setFormData={setFormData}
+            loading={loading}
+            editing={false}
+            teams={teams}
+            onShowNewTeamModal={() => setShowNewTeamModal(true)}
+            onImageChange={handleImageChange}
+            imagePreview={imagePreview}
           />
         )}
 
@@ -452,8 +668,28 @@ export function AdminDashboard() {
             onClose={() => {
               setShowEditForm(false);
               setEditingJersey(null);
-              setFormData({ title: '', team_name: '', tags: '', image: null });
+              setFormData(initialFormData);
+              setImagePreview(null);
             }}
+            onSubmit={handleSubmit}
+            formData={formData}
+            setFormData={setFormData}
+            loading={loading}
+            editing={true}
+            teams={teams}
+            onShowNewTeamModal={() => setShowNewTeamModal(true)}
+            onImageChange={handleImageChange}
+            imagePreview={imagePreview}
+          />
+        )}
+
+        {showNewTeamModal && (
+          <NewTeamModal
+            onClose={() => setShowNewTeamModal(false)}
+            onSave={handleSaveNewTeam}
+            value={newTeamName}
+            onChange={setNewTeamName}
+            loading={loading}
           />
         )}
       </div>
