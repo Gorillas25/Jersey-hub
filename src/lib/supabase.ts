@@ -22,6 +22,7 @@ export type Profile = {
 export type Jersey = {
   id: string;
   title: string;
+  team_id: string;
   team_name: string;
   image_url: string;
   tags: string[];
